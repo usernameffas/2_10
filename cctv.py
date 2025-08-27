@@ -11,15 +11,12 @@ class MasImageHelper:
                               if f.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.ppm', '.pgm'))])
         self.index = 0
         self.photo = None
-        self.opencv_images = []  # OpenCV 이미지 저장용 리스트
+        self.opencv_images = []
         self.load_images_with_detection()
 
     def load_images_with_detection(self):
-        # OpenCV HOG 인식기 초기화
         self.hog = cv2.HOGDescriptor()
         self.hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
-
-        
 
         for img_name in self.images:
             img_path = os.path.join(self.folder_path, img_name)
@@ -27,13 +24,13 @@ class MasImageHelper:
             if image is None:
                 self.opencv_images.append(None)
                 continue
-
-            # 사람 탐지
             regions, _ = self.hog.detectMultiScale(image, winStride=(8,8), padding=(8,8), scale=1.05)
-
-            # 빨간 사각형 그리기
-            for (x, y, w, h) in regions:
-                cv2.rectangle(image, (x,y), (x+w, y+h), (0,0,255), 2)
+            
+            # 보너스 사각형 없이 단순 탐지 여부 출력
+            if len(regions) > 0:
+                print(f'{img_name}: 사람 탐지됨 ({len(regions)}명)')
+            else:
+                print(f'{img_name}: 사람 탐지 안 됨')
 
             self.opencv_images.append(image)
 
@@ -60,15 +57,14 @@ def extract_zip(zip_path, extract_to):
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(extract_to)
 
-def opencv_to_photoimage(cv_image, max_size=(800, 600)):
+def opencv_to_photoimage(cv_image, max_size=(800,600)):
     h, w = cv_image.shape[:2]
-    scale = min(max_size[0] / w, max_size[1] / h, 1)  # 1보다 큰 배율은 사용하지 않음
+    scale = min(max_size[0]/w, max_size[1]/h, 1)
     if scale < 1:
-        cv_image = cv2.resize(cv_image, (int(w * scale), int(h * scale)))
+        cv_image = cv2.resize(cv_image, (int(w*scale), int(h*scale)))
     cv2_rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
     pil_img = Image.fromarray(cv2_rgb)
     return ImageTk.PhotoImage(pil_img)
-
 
 def main():
     zip_path = 'CCTV.zip'
@@ -89,22 +85,19 @@ def main():
         if opencv_img is None:
             label.config(text='이미지를 읽을 수 없습니다.')
             return
-
         photo = opencv_to_photoimage(opencv_img)
-        img_helper.photo = photo  # 참조 유지 필수
+        img_helper.photo = photo
         label.config(image=photo)
 
     def on_key(event):
-        if event.keysym == 'Return':  # Enter 키 누를 때 다음 이미지
+        if event.keysym == 'Return':
             if img_helper.next_image():
                 show_image()
             else:
                 print('마지막 이미지입니다. 검색을 종료합니다.')
                 root.destroy()
 
-    # 최초 이미지 출력
     show_image()
-
     root.bind('<Key>', on_key)
     root.mainloop()
 
